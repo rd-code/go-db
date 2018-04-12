@@ -2,6 +2,7 @@ package gdb
 
 import (
     "database/sql"
+    _ "github.com/lib/pq"
     "errors"
     "sync"
     "fmt"
@@ -9,10 +10,10 @@ import (
 
 const (
     DRIVER_NAME              = "postgres"
-    DATASOURCE_NAME_TEMPLATE = "host=%s port=%d user=%s password=%d dbname=%s sslmode=%s"
+    DATASOURCE_NAME_TEMPLATE = "host=%s port=%d user=%s password=%s dbname=%s sslmode=%s"
 )
 
-type DBOptions struct {
+type dbOptions struct {
     Host     string
     Port     int
     User     string
@@ -21,36 +22,54 @@ type DBOptions struct {
     SslMode  string
 }
 
-func (do *DBOptions) IsNil() bool {
+func (do *dbOptions) IsNil() bool {
     return do == nil
 }
 
-func SetOptions(data DBOptions) {
-    options = &data
+func SetDataSource(host string, port int, user, password, database, sslmode string) {
+    client.options = &dbOptions{
+        Host:     host,
+        Port:     port,
+        User:     user,
+        Password: password,
+        DataBase: database,
+        SslMode:  sslmode,
+    }
 }
 
-var options *DBOptions
-var db *sql.DB
-var mutex sync.Mutex
+type Client struct {
+    db      *sql.DB
+    err     error
+    once    sync.Once
+    options *dbOptions
+}
+
+var client = &Client{}
 
 var DBOptionsNilErr = errors.New("the options of db is nil")
 
+func loadDB() {
+    if client.options.IsNil() {
+        client.err = DBOptionsNilErr
+        return
+    }
+    client.db, client.err = sql.Open(DRIVER_NAME, fmt.Sprintf(DATASOURCE_NAME_TEMPLATE, client.options.Host,
+        client.options.Port, client.options.User, client.options.Password, client.options.DataBase,
+        client.options.SslMode))
+}
+
 func DB() (*sql.DB, error) {
-    if options.IsNil() {
-        return nil, DBOptionsNilErr
+    if client.db != nil || client.err != nil {
+        return client.db, client.err
     }
-    if db != nil {
-        return db, nil
-    }
-    mutex.Lock()
-    defer mutex.Unlock()
-    if db != nil {
-        return db, nil
-    }
-    var err error
-    if db, err = sql.Open(DRIVER_NAME, fmt.Sprintf(DATASOURCE_NAME_TEMPLATE,
-        options.Host, options.Port, options.User, options.Password, options.DataBase, options.SslMode)); err != nil {
+    client.once.Do(loadDB)
+    return client.db, client.err
+}
+
+func query(sqlStr string, args ...interface{}) (*sql.Rows, error) {
+    db, err := DB()
+    if err != nil {
         return nil, err
     }
-    return db, err
+    return db.Query(sqlStr, args...)
 }

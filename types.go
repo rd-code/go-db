@@ -6,10 +6,6 @@ import (
     "database/sql"
 )
 
-type DBInterface interface {
-    TableName() string
-}
-
 //实现更新操作
 //data 需要更新数据
 //conditions 更新条件
@@ -25,6 +21,7 @@ func Update(model DBInterface, data, conditions map[string]interface{}) (sql.Res
     return db.Exec(sql, args...)
 }
 
+//生成数据库的update语句以及相应参数
 func GenerateUpdate(model DBInterface, data, conditions map[string]interface{}) (sql string, args []interface{}, err error) {
     builder := &strings.Builder{}
     if _, err = builder.WriteString("UPDATE "); err != nil {
@@ -64,4 +61,10 @@ func GenerateUpdate(model DBInterface, data, conditions map[string]interface{}) 
     }
     sql = builder.String()
     return
+}
+
+//生成数据库的Insert语句以及相应参数
+//model需要实现DBInterface，或者model为数组，且里面的每个元素实现DBInterface
+func GenerateAdd(model interface{}, columns ...string) {
+
 }
