@@ -224,6 +224,7 @@ func (so *SelectOrm) GenerateSql() (sql string, args []interface{}, err error) {
             return
         }
         args = append(args, so.offset)
+        count += 1
     }
 
     sql = sb.String()
