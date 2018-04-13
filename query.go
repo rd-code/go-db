@@ -40,6 +40,8 @@ type SelectOrm struct {
     limit     int
     offset    int
     filter    map[string]Conditions
+    orderBy   string
+    groupBy   []string
 }
 
 type Conditions struct {
@@ -59,6 +61,16 @@ func (so *SelectOrm) Model(model DBInterface) *SelectOrm {
 
 func (so *SelectOrm) TableName(tableName string) *SelectOrm {
     so.tableName = tableName
+    return so
+}
+
+func (so *SelectOrm) OrderBy(orderBy string) *SelectOrm {
+    so.orderBy = orderBy
+    return so
+}
+
+func (so *SelectOrm) GroupBy(columns ...string) *SelectOrm {
+    so.groupBy = columns
     return so
 }
 
@@ -181,6 +193,23 @@ func (so *SelectOrm) GenerateSql() (sql string, args []interface{}, err error) {
         }
 
         count += 1
+    }
+
+    if len(so.groupBy) != 0 {
+        if _, err = sb.WriteString(" GROUP BY "); err != nil {
+            return
+        }
+        if _, err = sb.WriteString(strings.Join(so.groupBy, ", ")); err != nil {
+            return
+        }
+    }
+    if len(so.orderBy) != 0 {
+        if _, err = sb.WriteString(" ORDER BY "); err != nil {
+            return
+        }
+        if _, err = sb.WriteString(so.orderBy); err != nil {
+            return
+        }
     }
 
     if so.limit > 0 {
