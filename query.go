@@ -239,3 +239,19 @@ func GetColumns(model DBInterface) (columns []string) {
     }
     return
 }
+
+func (so *SelectOrm) QueryString() ([]string, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return nil, err
+    }
+    return QueryString(sql, args...)
+}
+
+func (so *SelectOrm) QueryMap() ([]map[string]interface{}, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return nil, err
+    }
+    return QueryMap(sql, args...)
+}
