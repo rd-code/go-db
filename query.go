@@ -191,8 +191,6 @@ func (so *SelectOrm) GenerateSql() (sql string, args []interface{}, err error) {
         if _, err = sb.WriteString(strings.Join(marks, " AND ")); err != nil {
             return
         }
-
-        count += 1
     }
 
     if len(so.groupBy) != 0 {
