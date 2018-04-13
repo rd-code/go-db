@@ -183,6 +183,20 @@ func (so *SelectOrm) GenerateSql() (sql string, args []interface{}, err error) {
         count += 1
     }
 
+    if so.limit > 0 {
+        if _, err = sb.WriteString(fmt.Sprintf(" LIMIT $%d", count)); err != nil {
+            return
+        }
+        args = append(args, so.limit)
+        count += 1
+    }
+    if so.offset > 0 {
+        if _, err = sb.WriteString(fmt.Sprintf(" OFFSET $%d", count)); err != nil {
+            return
+        }
+        args = append(args, so.offset)
+    }
+
     sql = sb.String()
     return
 }
