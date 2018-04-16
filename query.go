@@ -411,7 +411,7 @@ var NotStructErr = errors.New("cannot get struct")
 
 func GetStructType(rt reflect.Type) (res reflect.Type, err error) {
     for i := 0; i < 10; i++ {
-        if rt.Kind() == reflect.Struct {
+        if rt.Kind() != reflect.Struct {
             res = rt
             return
         }
