@@ -415,6 +415,7 @@ func GetStructType(rt reflect.Type) (res reflect.Type, err error) {
             res = rt
             return
         }
+        rt = rt.Elem()
     }
     err = NotStructErr
     return
