@@ -353,7 +353,7 @@ func Query(model interface{}, sqlStr string, args ...interface{}) (res []interfa
         if err = rows.Scan(items...); err != nil {
             return
         }
-        rt := reflect.New(rt)
+        rv := reflect.New(rt)
         for i, column := range columns {
             if field, ok := columnField[column]; ok {
                 switch field.typ.Kind() {
@@ -361,22 +361,22 @@ func Query(model interface{}, sqlStr string, args ...interface{}) (res []interfa
                     reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
                     t := items[i].(*sql.NullInt64)
                     if t.Valid {
-                        rt.Elem().FieldByName(field.name).SetInt(t.Int64)
+                        rv.Elem().FieldByName(field.name).SetInt(t.Int64)
                     }
                 case reflect.String:
                     t := items[i].(*sql.NullString)
                     if t.Valid {
-                        rt.Elem().FieldByName(field.name).SetString(t.String)
+                        rv.Elem().FieldByName(field.name).SetString(t.String)
                     }
                 case reflect.Bool:
                     t := items[i].(*sql.NullBool)
                     if t.Valid {
-                        rt.Elem().FieldByName(field.name).SetBool(t.Bool)
+                        rv.Elem().FieldByName(field.name).SetBool(t.Bool)
                     }
                 case reflect.Float32, reflect.Float64:
                     t := items[i].(*sql.NullFloat64)
                     if t.Valid {
-                        rt.Elem().FieldByName(field.name).SetFloat(t.Float64)
+                        rv.Elem().FieldByName(field.name).SetFloat(t.Float64)
                     }
                 default:
                     if field.typ == timeType {
@@ -390,7 +390,7 @@ func Query(model interface{}, sqlStr string, args ...interface{}) (res []interfa
                             if tim, err = time.Parse(layout, t.String); err != nil {
                                 return
                             }
-                            rt.Elem().FieldByName(field.name).Set(reflect.ValueOf(tim))
+                            rv.Elem().FieldByName(field.name).Set(reflect.ValueOf(tim))
                         }
                     } else {
                         err = FieldTypeErr
@@ -401,7 +401,7 @@ func Query(model interface{}, sqlStr string, args ...interface{}) (res []interfa
             }
         }
 
-        res = append(res, rt.Elem().Interface())
+        res = append(res, rv.Elem().Interface())
     }
 
     return
