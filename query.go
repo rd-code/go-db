@@ -5,6 +5,8 @@ import (
     "strings"
     "reflect"
     "fmt"
+    "database/sql"
+    "time"
 )
 
 type Operation int
@@ -256,6 +258,164 @@ func (so *SelectOrm) QueryMap() ([]map[string]interface{}, error) {
     return QueryMap(sql, args...)
 }
 
-func Query(model interface{}, sql string, args ...interface{}) {
+var InvalidFieldNumErr = errors.New("the number of struct field is invalid")
+var FieldTypeErr = errors.New("the field of sturct type is invalid")
+var timeType = reflect.TypeOf(time.Time{})
 
+func Query(model interface{}, sqlStr string, args ...interface{}) (res []interface{}, err error) {
+    switch model.(type) {
+    case int, int8, int16, int32, int64, *int, *int8, *int16, *int32, *int64,
+    uint, uint8, uint16, uint32, uint64, *uint, *uint8, *uint16, *uint32, *uint64:
+        var items []int64
+        if items, err = QueryInt(sqlStr, args...); err != nil {
+            return
+        }
+        res = make([]interface{}, len(items))
+        for i := range items {
+            res[i] = items[i]
+        }
+        return
+    case string, *string:
+        var items []string
+        if items, err = QueryString(sqlStr, args...); err != nil {
+            return
+        }
+        res = make([]interface{}, len(items))
+        for i := range items {
+            res[i] = items[i]
+        }
+        return
+    case bool, *bool:
+        var items []bool
+        if items, err = QueryBool(sqlStr, args...); err != nil {
+            return
+        }
+        res = make([]interface{}, len(items))
+        for i := range items {
+            res[i] = items[i]
+        }
+        return
+    case float64, *float64, float32, *float32:
+        var items []float64
+        if items, err = QueryFloat(sqlStr, args...); err != nil {
+            return
+        }
+        res = make([]interface{}, len(items))
+        for i := range items {
+            res[i] = items[i]
+        }
+        return
+    }
+
+    fields := cacheTypeFileds(reflect.TypeOf(model))
+    if len(fields) == 0 {
+        err = InvalidFieldNumErr
+        return
+    }
+
+    var rows *sql.Rows
+    if rows, err = query(sqlStr, args...); err != nil {
+        return
+    }
+    defer rows.Close()
+
+    var columns []string
+    if columns, err = rows.Columns(); err != nil {
+        return
+    }
+    rt := reflect.TypeOf(model)
+    if rt, err = GetStructType(rt); err != nil {
+        return
+    }
+    columnField := typeFileds(rt)
+
+    for rows.Next() {
+        items := make([]interface{}, len(columns))
+        for i, column := range columns {
+            if field, ok := columnField[column]; ok {
+                switch field.typ.Kind() {
+                case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+                    reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+                    items[i] = &sql.NullInt64{}
+                case reflect.String:
+                    items[i] = &sql.NullString{}
+                case reflect.Bool:
+                    items[i] = &sql.NullBool{}
+                case reflect.Float64, reflect.Float32:
+                    items[i] = &sql.NullFloat64{}
+                default:
+                    items[i] = &sql.NullString{}
+                }
+            } else {
+                items[i] = &sql.NullString{}
+            }
+        }
+        if err = rows.Scan(items...); err != nil {
+            return
+        }
+        rt := reflect.New(rt)
+        for i, column := range columns {
+            if field, ok := columnField[column]; ok {
+                switch field.typ.Kind() {
+                case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+                    reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+                    t := items[i].(*sql.NullInt64)
+                    if t.Valid {
+                        rt.FieldByName(field.name).SetInt(t.Int64)
+                    }
+                case reflect.String:
+                    t := items[i].(*sql.NullString)
+                    if t.Valid {
+                        rt.FieldByName(field.name).SetString(t.String)
+                    }
+                case reflect.Bool:
+                    t := items[i].(*sql.NullBool)
+                    if t.Valid {
+                        rt.FieldByName(field.name).SetBool(t.Bool)
+                    }
+                case reflect.Float32, reflect.Float64:
+                    t := items[i].(*sql.NullFloat64)
+                    if t.Valid {
+                        rt.FieldByName(field.name).SetFloat(t.Float64)
+                    }
+                default:
+                    if field.typ == timeType {
+                        t := items[i].(*sql.NullString)
+                        if t.Valid {
+                            var tim time.Time
+                            var layout = time.RFC3339
+                            if len(field.format) != 0 {
+                                layout = field.format
+                            }
+                            if tim, err = time.Parse(layout, t.String); err != nil {
+                                return
+                            }
+                            rt.FieldByName(field.name).Set(reflect.ValueOf(tim))
+                        }
+                    } else {
+                        err = FieldTypeErr
+                        return
+                    }
+
+                }
+            }
+        }
+
+        res = append(res, rt.Elem().Interface())
+    }
+
+    return
+}
+
+var NotStructErr = errors.New("cannot get struct")
+
+func GetStructType(rt reflect.Type) (res reflect.Type, err error) {
+    for i := 0; i < 10; i++ {
+        if rt.Kind() == reflect.Struct {
+            res = rt
+            return
+        }
+    }
+    err = NotStructErr
+    return
 }

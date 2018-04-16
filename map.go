@@ -8,8 +8,6 @@ import (
     "errors"
 )
 
-var timeKind = reflect.TypeOf(time.Time{}).Kind()
-
 var unknowTypeErr = errors.New("unknown type")
 
 func QueryMap(sqlStr string, args ...interface{}) (res []map[string]interface{}, err error) {
@@ -44,13 +42,15 @@ func QueryMap(sqlStr string, args ...interface{}) (res []map[string]interface{},
                 item = &sql.NullBool{}
             case reflect.String:
                 item = &sql.NullString{}
-            case timeKind:
-                item = &sql.NullString{}
             case reflect.Interface:
                 item = &[]byte{}
             default:
-                err = unknowTypeErr
-                return
+                if columnType.ScanType() == timeType {
+                    item = &sql.NullString{}
+                } else {
+                    err = unknowTypeErr
+                    return
+                }
             }
             items[i] = item
         }
@@ -61,8 +61,7 @@ func QueryMap(sqlStr string, args ...interface{}) (res []map[string]interface{},
         data := make(map[string]interface{})
         for i := range items {
             columnType := columnTypes[i]
-            switch columnType.ScanType().Kind() {
-            case timeKind:
+            if columnType.ScanType() == timeType {
                 item := items[i].(*sql.NullString)
                 if item.Valid {
                     var t time.Time
@@ -71,40 +70,44 @@ func QueryMap(sqlStr string, args ...interface{}) (res []map[string]interface{},
                     }
                     data[columns[i]] = t
                 }
-            case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-                reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-                item := items[i].(*sql.NullInt64)
-                if item.Valid {
-                    data[columns[i]] = item.Int64
-                }
-            case reflect.Float64, reflect.Float32:
-                item := items[i].(*sql.NullFloat64)
-                if item.Valid {
-                    data[columns[i]] = item.Float64
-                }
-            case reflect.Bool:
-                item := items[i].(*sql.NullBool)
-                if item.Valid {
-                    data[columns[i]] = item.Bool
-                }
-            case reflect.String:
-                item := items[i].(*sql.NullString)
-                if item.Valid {
-                    data[columns[i]] = item.String
-                }
-            case reflect.Interface:
-                item := items[i].(*[]byte)
-                if columnType.DatabaseTypeName() == "JSONB" {
-                    var t interface{}
-                    if t, err = convertByteToJson(*item); err != nil {
-                        return
+            } else {
+                switch columnType.ScanType().Kind() {
+
+                case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+                    reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+                    item := items[i].(*sql.NullInt64)
+                    if item.Valid {
+                        data[columns[i]] = item.Int64
                     }
-                    if t != nil {
-                        data[columns[i]] = t
+                case reflect.Float64, reflect.Float32:
+                    item := items[i].(*sql.NullFloat64)
+                    if item.Valid {
+                        data[columns[i]] = item.Float64
                     }
-                } else {
-                    if len(*item) > 0 {
-                        data[columns[i]] = item
+                case reflect.Bool:
+                    item := items[i].(*sql.NullBool)
+                    if item.Valid {
+                        data[columns[i]] = item.Bool
+                    }
+                case reflect.String:
+                    item := items[i].(*sql.NullString)
+                    if item.Valid {
+                        data[columns[i]] = item.String
+                    }
+                case reflect.Interface:
+                    item := items[i].(*[]byte)
+                    if columnType.DatabaseTypeName() == "JSONB" {
+                        var t interface{}
+                        if t, err = convertByteToJson(*item); err != nil {
+                            return
+                        }
+                        if t != nil {
+                            data[columns[i]] = t
+                        }
+                    } else {
+                        if len(*item) > 0 {
+                            data[columns[i]] = item
+                        }
                     }
                 }
             }

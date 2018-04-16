@@ -27,19 +27,19 @@ type field struct {
     format string
 }
 
-func cacheTypeFileds(t reflect.Type) ([]field) {
-    m, _ := fieldCache.value.Load().(map[reflect.Type][]field)
+func cacheTypeFileds(t reflect.Type) (map[string]field) {
+    m, _ := fieldCache.value.Load().(map[reflect.Type]map[string]field)
     f := m[t]
     if f != nil {
         return f
     }
     f = typeFileds(t)
     if f == nil {
-        f = []field{}
+        f = map[string]field{}
     }
     fieldCache.mu.Lock()
-    m, _ = fieldCache.value.Load().(map[reflect.Type][]field)
-    newM := make(map[reflect.Type][]field, len(m)+1)
+    m, _ = fieldCache.value.Load().(map[reflect.Type]map[string]field)
+    newM := make(map[reflect.Type]map[string]field, len(m)+1)
     for k, v := range m {
         newM[k] = v
     }
@@ -50,7 +50,7 @@ func cacheTypeFileds(t reflect.Type) ([]field) {
     return f
 }
 
-func typeFileds(t reflect.Type) ([]field) {
+func typeFileds(t reflect.Type) (map[string]field) {
     for {
         if t.Kind() == reflect.Ptr || t.Kind() == reflect.Slice {
             t = t.Elem()
@@ -62,7 +62,7 @@ func typeFileds(t reflect.Type) ([]field) {
         return nil
     }
     num := t.NumField()
-    res := make([]field, 0, num)
+    res := make(map[string]field)
     var ok bool
     var tag string
     for i := 0; i < num; i++ {
@@ -70,20 +70,20 @@ func typeFileds(t reflect.Type) ([]field) {
         var tmp field
         if tag, ok = getTag(&f); ok {
             tmp.valid = true
-            if f.Type.Kind() == timeKind {
+            if f.Type == timeType {
                 if strings.Contains(tag, ";") {
                     items := strings.Split(tag, ";")
                     tag, tmp.format = items[0], items[1]
                 }
             }
-            tmp.name=f.Name
+            tmp.name = f.Name
             tmp.tag = tag
             tmp.typ = f.Type
             tmp.index = f.Index
         } else {
             tmp.valid = false
         }
-        res = append(res, tmp)
+        res[tag] = tmp
     }
     return res
 }
@@ -97,9 +97,6 @@ func getTag(f *reflect.StructField) (tag string, ok bool) {
         ok = false
     } else {
         ok = true
-    }
-    if f.Type.Kind() != timeKind {
-        return
     }
     return
 }
