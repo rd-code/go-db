@@ -66,6 +66,10 @@ func DB() (*sql.DB, error) {
     return client.db, client.err
 }
 
+func Close() error {
+    return client.db.Close()
+}
+
 func query(sqlStr string, args ...interface{}) (*sql.Rows, error) {
     db, err := DB()
     if err != nil {
