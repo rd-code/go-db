@@ -255,3 +255,7 @@ func (so *SelectOrm) QueryMap() ([]map[string]interface{}, error) {
     }
     return QueryMap(sql, args...)
 }
+
+func Query(model interface{}, sql string, args ...interface{}) {
+
+}

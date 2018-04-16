@@ -4,6 +4,7 @@ import (
     "sync/atomic"
     "sync"
     "reflect"
+    "strings"
 )
 
 const (
@@ -20,9 +21,10 @@ type field struct {
     name string
     tag  string
 
-    valid bool
-    index []int
-    typ   reflect.Type
+    valid  bool
+    index  []int
+    typ    reflect.Type
+    format string
 }
 
 func cacheTypeFileds(t reflect.Type) ([]field) {
@@ -68,6 +70,13 @@ func typeFileds(t reflect.Type) ([]field) {
         var tmp field
         if tag, ok = getTag(&f); ok {
             tmp.valid = true
+            if f.Type.Kind() == timeKind {
+                if strings.Contains(tag, ";") {
+                    items := strings.Split(tag, ";")
+                    tag, tmp.format = items[0], items[1]
+                }
+            }
+            tmp.name=f.Name
             tmp.tag = tag
             tmp.typ = f.Type
             tmp.index = f.Index
@@ -88,6 +97,9 @@ func getTag(f *reflect.StructField) (tag string, ok bool) {
         ok = false
     } else {
         ok = true
+    }
+    if f.Type.Kind() != timeKind {
+        return
     }
     return
 }
