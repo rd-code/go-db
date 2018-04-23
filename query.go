@@ -9,6 +9,7 @@ import (
     "time"
 )
 
+//操作 =,in,like 等等
 type Operation int
 
 const (
@@ -16,6 +17,15 @@ const (
     NOTEQUAl
     IN
     NOTIN
+    LIKE
+)
+
+//逻辑关系 add or
+type Logic string
+
+const (
+    AND Logic = "AND"
+    OR        = "OR"
 )
 
 type DBInterface interface {
@@ -23,7 +33,6 @@ type DBInterface interface {
 }
 
 type Orm struct {
-    op      Operation
     columns []string
 }
 
@@ -41,14 +50,72 @@ type SelectOrm struct {
     tableName string
     limit     int
     offset    int
-    filter    map[string]Conditions
+    filter    []Conditions
     orderBy   string
     groupBy   []string
 }
 
 type Conditions struct {
+    key   string
+    logic Logic
     op    Operation
     value interface{}
+}
+
+func (c *Conditions) Generate(count *int) (logic string, res string, args []interface{}, err error) {
+    sb := strings.Builder{}
+    if _, err = sb.WriteString(c.key); err != nil {
+        return
+    }
+    switch c.op {
+    case EQUAL:
+        if _, err = sb.WriteString(fmt.Sprintf("=$%d", *count)); err != nil {
+            return
+        }
+        args = append(args, c.value)
+    case NOTEQUAl:
+        if _, err = sb.WriteString(fmt.Sprintf("!=$%d", *count)); err != nil {
+            return
+        }
+        args = append(args, c.value)
+    case LIKE:
+        if _, err = sb.WriteString(fmt.Sprintf(" LIKE $%d", *count)); err != nil {
+            return
+        }
+        args = append(args, c.value)
+    case IN, NOTIN:
+        if c.op == IN {
+            if _, err = sb.WriteString(" IN ("); err != nil {
+                return
+            }
+
+        } else {
+            if _, err = sb.WriteString(" NOT IN ("); err != nil {
+                return
+            }
+        }
+        items := c.value.([]interface{})
+        marks := make([]string, len(items))
+        for i, item := range items {
+            marks[i] = fmt.Sprintf("$%d", *count)
+            args = append(args, item)
+            *count += 1
+        }
+        *count -= 1
+        if _, err = sb.WriteString(strings.Join(marks, ", ")); err != nil {
+            return
+        }
+        if _, err = sb.WriteString(")"); err != nil {
+            return
+        }
+
+    }
+    *count += 1
+    res = sb.String()
+
+    logic = string(c.logic)
+
+    return
 }
 
 func (so *SelectOrm) Columns(columns ...string) *SelectOrm {
@@ -89,7 +156,7 @@ var InvalidOperationNumErr = errors.New("the operate number is invalid")
 
 func (so *SelectOrm) Filter(key string, value interface{}, operation ...Operation) *SelectOrm {
     if so.filter == nil {
-        so.filter = make(map[string]Conditions)
+        so.filter = make([]Conditions, 0, 1)
     }
     var op Operation
     if len(operation) == 0 {
@@ -97,10 +164,30 @@ func (so *SelectOrm) Filter(key string, value interface{}, operation ...Operatio
     } else if len(operation) == 1 {
         op = operation[0]
     }
-    so.filter[key] = Conditions{
+    so.filter = append(so.filter, Conditions{
+        key:   key,
+        logic: AND,
         op:    op,
         value: value,
+    })
+    return so
+}
+
+func (so *SelectOrm) FilterOr(key string, value interface{}, operation ...Operation) *SelectOrm {
+    if so.filter == nil {
+        so.filter = make([]Conditions, 0, 1)
     }
+    var op Operation
+    if len(operation) == 0 {
+        op = EQUAL
+    } else if len(operation) == 1 {
+        op = operation[0]
+    }
+    so.filter = append(so.filter, Conditions{
+        logic: AND,
+        op:    op,
+        value: value,
+    })
     return so
 }
 
@@ -146,52 +233,37 @@ func (so *SelectOrm) GenerateSql() (sql string, args []interface{}, err error) {
         if _, err = sb.WriteString(" WHERE "); err != nil {
             return
         }
-        marks := make([]string, 0, len(so.filter))
-        for k, v := range so.filter {
-            c := &strings.Builder{}
-            if _, err = c.WriteString(k); err != nil {
+        condition := so.filter[0]
+
+        var mark string
+        var tmpArgs []interface{}
+        if _, mark, tmpArgs, err = condition.Generate(&count); err != nil {
+            return
+        }
+        if _, err = sb.WriteString(mark); err != nil {
+            return
+        }
+        args = append(args, tmpArgs...)
+
+        for i := 1; i < len(so.filter); i++ {
+            condition = so.filter[i]
+            var logic string
+            if logic, mark, tmpArgs, err = condition.Generate(&count); err != nil {
                 return
             }
-            if v.op == EQUAL {
-                if _, err = c.WriteString(fmt.Sprintf("=$%d", count)); err != nil {
-                    return
-                }
-                args = append(args, v.value)
-            } else if v.op == NOTEQUAl {
-                if _, err = c.WriteString(fmt.Sprintf("!=$%d", count)); err != nil {
-                    return
-                }
-            } else {
-                if v.op == IN {
-                    if _, err = c.WriteString(" IN ("); err != nil {
-                        return
-                    }
-                } else {
-                    if _, err = c.WriteString(" NOT IN ("); err != nil {
-                        return
-                    }
-                    items := v.value.([]interface{})
-                    tt := make([]string, len(items))
-                    for i, item := range items {
-                        tt[i] = fmt.Sprintf("$%d", count)
-                        args = append(args, item)
-                        count += 1
-                    }
-                    count -= 1
-                    if _, err = c.WriteString(strings.Join(tt, ", ")); err != nil {
-                        return
-                    }
-                    if _, err = c.WriteString(")"); err != nil {
-                        return
-                    }
-                }
+            if _, err = sb.WriteString(" "); err != nil {
+                return
             }
-            count += 1
-
-            marks = append(marks, c.String())
-        }
-        if _, err = sb.WriteString(strings.Join(marks, " AND ")); err != nil {
-            return
+            if _, err = sb.WriteString(logic); err != nil {
+                return
+            }
+            if _, err = sb.WriteString(" "); err != nil {
+                return
+            }
+            if _, err = sb.WriteString(mark); err != nil {
+                return
+            }
+            args = append(args, tmpArgs...)
         }
     }
 
