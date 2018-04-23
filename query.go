@@ -185,7 +185,7 @@ func (so *SelectOrm) FilterOr(key string, value interface{}, operation ...Operat
     }
     so.filter = append(so.filter, Conditions{
         key:   key,
-        logic: AND,
+        logic: OR,
         op:    op,
         value: value,
     })
