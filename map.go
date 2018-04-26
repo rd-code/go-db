@@ -6,6 +6,7 @@ import (
     "database/sql"
     "encoding/json"
     "errors"
+    "strings"
 )
 
 var unknowTypeErr = errors.New("unknown type")
@@ -43,7 +44,11 @@ func QueryMap(sqlStr string, args ...interface{}) (res []map[string]interface{},
             case reflect.String:
                 item = &sql.NullString{}
             case reflect.Interface:
-                item = &[]byte{}
+                if strings.HasPrefix(columnType.DatabaseTypeName(), "FLOAT") {
+                    item = &sql.NullFloat64{}
+                } else {
+                    item = &[]byte{}
+                }
             default:
                 if columnType.ScanType() == timeType {
                     item = &sql.NullString{}
@@ -95,18 +100,25 @@ func QueryMap(sqlStr string, args ...interface{}) (res []map[string]interface{},
                         data[columns[i]] = item.String
                     }
                 case reflect.Interface:
-                    item := items[i].(*[]byte)
-                    if columnType.DatabaseTypeName() == "JSONB" {
-                        var t interface{}
-                        if t, err = convertByteToJson(*item); err != nil {
-                            return
-                        }
-                        if t != nil {
-                            data[columns[i]] = t
+                    if strings.HasPrefix(columnType.DatabaseTypeName(), "FLOAT") {
+                        item := items[i].(*sql.NullFloat64)
+                        if item.Valid {
+                            data[columns[i]] = item.Float64
                         }
                     } else {
-                        if len(*item) > 0 {
-                            data[columns[i]] = item
+                        item := items[i].(*[]byte)
+                        if columnType.DatabaseTypeName() == "JSONB" {
+                            var t interface{}
+                            if t, err = convertByteToJson(*item); err != nil {
+                                return
+                            }
+                            if t != nil {
+                                data[columns[i]] = t
+                            }
+                        } else {
+                            if len(*item) > 0 {
+                                data[columns[i]] = item
+                            }
                         }
                     }
                 }
