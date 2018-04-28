@@ -18,6 +18,10 @@ const (
     IN
     NOTIN
     LIKE
+    LT
+    LTE
+    GT
+    GTE
 )
 
 //逻辑关系 add or
@@ -80,6 +84,26 @@ func (c *Conditions) Generate(count *int) (logic string, res string, args []inte
         args = append(args, c.value)
     case LIKE:
         if _, err = sb.WriteString(fmt.Sprintf(" LIKE $%d", *count)); err != nil {
+            return
+        }
+        args = append(args, c.value)
+    case LT:
+        if _, err = sb.WriteString(fmt.Sprintf("<$%d", *count)); err != nil {
+            return
+        }
+        args = append(args, c.value)
+    case LTE:
+        if _, err = sb.WriteString(fmt.Sprintf("<=$%d", *count)); err != nil {
+            return
+        }
+        args = append(args, c.value)
+    case GT:
+        if _, err = sb.WriteString(fmt.Sprintf(">$%d", *count)); err != nil {
+            return
+        }
+        args = append(args, c.value)
+    case GTE:
+        if _, err = sb.WriteString(fmt.Sprintf(">=$%d", *count)); err != nil {
             return
         }
         args = append(args, c.value)
