@@ -347,12 +347,92 @@ func (so *SelectOrm) QueryString() ([]string, error) {
     return QueryString(sql, args...)
 }
 
+func (so *SelectOrm) GetString() (string, bool, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return "", false, err
+    }
+    return GetString(sql, args...)
+}
+
+func (so *SelectOrm) QueryInt() ([]int64, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return nil, err
+    }
+    return QueryInt(sql, args...)
+}
+
+func (so *SelectOrm) GetInt() (int64, bool, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return 0, false, err
+    }
+    return GetInt(sql, args...)
+}
+
+func (so *SelectOrm) QueryFloat() ([]float64, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return nil, err
+    }
+    return QueryFloat(sql, args...)
+}
+
+func (so *SelectOrm) GetFloat() (float64, bool, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return 0, false, err
+    }
+    return GetFloat(sql, args...)
+}
+
+func (so *SelectOrm) QueryBool() ([]bool, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return nil, err
+    }
+    return QueryBool(sql, args...)
+}
+
+func (so *SelectOrm) GetBool() (bool, bool, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return false, false, err
+    }
+    return GetBool(sql, args...)
+}
+
 func (so *SelectOrm) QueryMap() ([]map[string]interface{}, error) {
     sql, args, err := so.GenerateSql()
     if err != nil {
         return nil, err
     }
     return QueryMap(sql, args...)
+}
+
+func (so *SelectOrm) GetMap() (map[string]interface{}, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return nil, err
+    }
+    return GetMap(sql, args...)
+}
+
+func (so *SelectOrm) Query() ([]interface{}, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return nil, err
+    }
+    return Query(so.model, sql, args...)
+}
+
+func (so *SelectOrm) Get() (interface{}, error) {
+    sql, args, err := so.GenerateSql()
+    if err != nil {
+        return nil, err
+    }
+    return Get(so.model, sql, args...)
 }
 
 var InvalidFieldNumErr = errors.New("the number of struct field is invalid")
@@ -502,6 +582,18 @@ func Query(model interface{}, sqlStr string, args ...interface{}) (res []interfa
     }
 
     return
+}
+
+func Get(model interface{}, sqlStr string, args ...interface{}) (interface{}, error) {
+    items, err := Query(model, sqlStr, args...)
+    if err != nil {
+        return nil, err
+    }
+    if len(items) == 0 {
+        return nil, nil
+    }
+    return items[0], nil
+
 }
 
 var NotStructErr = errors.New("cannot get struct")

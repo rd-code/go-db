@@ -51,7 +51,20 @@ func QueryString(sqlStr string, args ...interface{}) (res []string, err error) {
             res = append(res, t.String)
         }
     }
+    return
+}
 
+//查询一条记录
+func GetString(sqlStr string, args ...interface{}) (res string, ok bool, err error) {
+    var items []string
+    if items, err = QueryString(sqlStr, args...); err != nil {
+        return
+    }
+    if len(items) == 0 {
+        return
+    }
+    ok = true
+    res = items[0]
     return
 }
 
@@ -84,6 +97,20 @@ func QueryInt(sqlStr string, args ...interface{}) (res []int64, err error) {
     return
 }
 
+//查询一条整数记录
+func GetInt(sqlStr string, args ...interface{}) (res int64, ok bool, err error) {
+    var items []int64
+    if items, err = QueryInt(sqlStr, args...); err != nil {
+        return
+    }
+    if len(items) == 0 {
+        return
+    }
+    ok = true
+    res = items[0]
+    return
+}
+
 //从数据库查询浮点数信息
 func QueryFloat(sqlStr string, args ...interface{}) (res []float64, err error) {
     var rows *sql.Rows
@@ -113,6 +140,20 @@ func QueryFloat(sqlStr string, args ...interface{}) (res []float64, err error) {
     return
 }
 
+//查询一条浮点数记录
+func GetFloat(sqlStr string, args ...interface{}) (res float64, ok bool, err error) {
+    var items []float64
+    if items, err = QueryFloat(sqlStr, args...); err != nil {
+        return
+    }
+    if len(items) == 0 {
+        return
+    }
+    ok = true
+    res = items[0]
+    return
+}
+
 //从数据库查询浮点数信息
 func QueryBool(sqlStr string, args ...interface{}) (res []bool, err error) {
     var rows *sql.Rows
@@ -139,5 +180,19 @@ func QueryBool(sqlStr string, args ...interface{}) (res []bool, err error) {
             res = append(res, t.Bool)
         }
     }
+    return
+}
+
+//查询一条布尔记录
+func GetBool(sqlStr string, args ...interface{}) (res bool, ok bool, err error) {
+    var items []bool
+    if items, err = QueryBool(sqlStr, args...); err != nil {
+        return
+    }
+    if len(items) == 0 {
+        return
+    }
+    ok = true
+    res = items[0]
     return
 }

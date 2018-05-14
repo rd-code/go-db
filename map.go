@@ -142,5 +142,16 @@ func convertByteToJson(array []byte) (interface{}, error) {
     res = []interface{}{}
     err = json.Unmarshal(array, &res)
     return res, err
+}
 
+func GetMap(sqlStr string, args ...interface{}) (res map[string]interface{}, err error) {
+    var items []map[string]interface{}
+    if items, err = QueryMap(sqlStr, args...); err != nil {
+        return
+    }
+    if len(items) == 0 {
+        return
+    }
+    res = items[0]
+    return
 }
