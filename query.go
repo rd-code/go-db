@@ -481,6 +481,7 @@ func Query(model interface{}, sqlStr string, args ...interface{}) (res []interfa
         for i := range items {
             res[i] = items[i]
         }
+
         return
     }
 
@@ -520,6 +521,13 @@ func Query(model interface{}, sqlStr string, args ...interface{}) (res []interfa
                     items[i] = &sql.NullBool{}
                 case reflect.Float64, reflect.Float32:
                     items[i] = &sql.NullFloat64{}
+                case reflect.Slice:
+                    if field.typ.Elem().Kind() == reflect.Uint8 {
+                        t := &[]byte{}
+                        items[i] = t
+                    } else {
+                        items[i] = &sql.NullString{}
+                    }
                 default:
                     items[i] = &sql.NullString{}
                 }
@@ -555,6 +563,15 @@ func Query(model interface{}, sqlStr string, args ...interface{}) (res []interfa
                     if t.Valid {
                         rv.Elem().FieldByName(field.name).SetFloat(t.Float64)
                     }
+                case reflect.Slice:
+                    if field.typ.Elem().Kind() == reflect.Uint8 {
+                        value := *items[i].(*[]byte)
+                        rv.Elem().FieldByName(field.name).SetBytes(value)
+                    } else {
+                        err = FieldTypeErr
+                        return
+                    }
+
                 default:
                     if field.typ == timeType {
                         t := items[i].(*sql.NullString)
