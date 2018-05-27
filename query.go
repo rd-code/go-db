@@ -1,12 +1,12 @@
 package gdb
 
 import (
-    "github.com/pkg/errors"
     "strings"
     "reflect"
     "fmt"
     "database/sql"
     "time"
+    "errors"
 )
 
 //操作 =,in,like 等等
