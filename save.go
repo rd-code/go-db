@@ -84,6 +84,7 @@ func multiSave(items []interface{}, columns ...string) (result sql.Result, err e
 
     for _, item := range items {
         rv := reflect.ValueOf(item)
+        GetStructType()
         flags := make([]interface{}, 0, len(columns))
         for _, column := range columns {
             flags = append(flags, count)
@@ -101,5 +102,17 @@ func multiSave(items []interface{}, columns ...string) (result sql.Result, err e
         return
     }
     result, err = db.Exec(sb.String(), args...)
+    return
+}
+
+func getStructValue(rt reflect.Value) (res reflect.Value, err error) {
+    for i := 0; i < 10; i++ {
+        if rt.Kind() == reflect.Struct {
+            res = rt
+            return
+        }
+        rt = rt.Elem()
+    }
+    err = NotStructErr
     return
 }
