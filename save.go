@@ -17,7 +17,7 @@ func Save(data interface{}, columns ...string) (result sql.Result, err error) {
     rt := reflect.TypeOf(data)
     var items []interface{}
     switch rt.Kind() {
-    case reflect.Struct:
+    case reflect.Struct, reflect.Ptr:
         if _, ok := data.(DBInterface); ok {
             items = append(items, data)
         } else {
