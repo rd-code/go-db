@@ -15,26 +15,48 @@ var invalidTypeErr = errors.New("cannot handle type")
  */
 func Save(data interface{}, columns ...string) (result sql.Result, err error) {
     rt := reflect.TypeOf(data)
+    var items []interface{}
     switch rt.Kind() {
     case reflect.Struct:
+        if _, ok := data.(DBInterface); ok {
+            items = append(items, data)
+        } else {
+            err = invalidTypeErr
+            return
+        }
     case reflect.Slice:
+        rv := reflect.ValueOf(data)
+        for i := 0; i < rv.Len(); i++ {
+            items = append(items, rv.Index(i).Interface())
+        }
     default:
         err = invalidTypeErr
         return
     }
-    return
+    return multiSave(items, columns...)
 }
 
-func multiSave(items []DBInterface, columns ...string) (result sql.Result, err error) {
+func multiSave(items []interface{}, columns ...string) (result sql.Result, err error) {
     if len(items) == 0 {
         return
     }
     typeFiled := cacheTypeFileds(reflect.TypeOf(items[0]))
+    if len(columns) == 0 {
+        columns = make([]string, 0, len(typeFiled))
+        for k := range typeFiled {
+            columns = append(columns, k)
+        }
+    }
+
     sb := &strings.Builder{}
     if _, err = sb.WriteString("INSERT INTO "); err != nil {
         return
     }
-    if _, err = sb.WriteString(items[0].TableName()); err != nil {
+    if _, ok := items[0].(DBInterface); !ok {
+        err = invalidTypeErr
+        return
+    }
+    if _, err = sb.WriteString(items[0].(DBInterface).TableName()); err != nil {
         return
     }
     if _, err = sb.WriteString(" ("); err != nil {
