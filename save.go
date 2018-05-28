@@ -84,7 +84,9 @@ func multiSave(items []interface{}, columns ...string) (result sql.Result, err e
 
     for _, item := range items {
         rv := reflect.ValueOf(item)
-        GetStructType()
+        if rv, err = getStructValue(rv); err != nil {
+            return
+        }
         flags := make([]interface{}, 0, len(columns))
         for _, column := range columns {
             flags = append(flags, count)
