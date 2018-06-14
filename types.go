@@ -80,7 +80,7 @@ func GenerateAdd(data interface{}, columns ...string) (saveSql string, args []in
     case reflect.Slice:
         rv := reflect.ValueOf(data)
         for i := 0; i < rv.Len(); i++ {
-            items = append(items, rv.Index(i).Interface())
+            items = append(items, rv.Index(i).Addr().Interface())
         }
     default:
         err = invalidTypeErr
