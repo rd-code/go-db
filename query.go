@@ -627,6 +627,8 @@ func GetStructType(rt reflect.Type) (res reflect.Type, err error) {
     return
 }
 
+//将interface转换成[]interface
+//如果data 部位slice,array,string将会发生panic
 func convertToSlice(data interface{}) ([]interface{}) {
     rv := reflect.ValueOf(data)
     res := make([]interface{}, 0, rv.Len())
