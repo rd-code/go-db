@@ -118,7 +118,7 @@ func (c *Conditions) Generate(count *int) (logic string, res string, args []inte
                 return
             }
         }
-        items := c.value.([]interface{})
+        items := convertToSlice(c.value)
         marks := make([]string, len(items))
         for i, item := range items {
             marks[i] = fmt.Sprintf("$%d", *count)
@@ -625,4 +625,14 @@ func GetStructType(rt reflect.Type) (res reflect.Type, err error) {
     }
     err = NotStructErr
     return
+}
+
+func convertToSlice(data interface{}) ([]interface{}) {
+    rv := reflect.ValueOf(data)
+    res := make([]interface{}, 0, rv.Len())
+    for i := 0; i < rv.Len(); i++ {
+        t := rv.Index(i).Interface()
+        res = append(res, t)
+    }
+    return res
 }
